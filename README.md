@@ -24,15 +24,24 @@ The model is trained to do exactly one thing: minimize reconstruction error. It 
 ## The 3 Kernels Tested
 
 ### 1. Softmax (baseline)
-$$weight_ij = exp(score_ij) / Σ_k exp(score_ik)$$
+$$
+\text{weight}_{ij} = \frac{\exp(\text{score}_{ij})}{\sum_{k} \exp(\text{score}_{ik})}
+$$
+
 This is what real transformers use. We use this as a baseline since the ratio between the strongest and weakest attended position under softmax is unbounded so a small score difference can become an enormous weight difference. This gives a network maximum flexibility to develop very sharp, winner-take-all attention patterns, which is one plausible route by which entangled, hard-to-audit representations could form during training. Softmax is also translation-invariant so shifting every score by the same constant changes nothing.
 
 ### 2. Bounded sigmoid + floor (intervention)
-$$weight_ij = (sigmoid(score_ij) + 0.05) / Σ_k (sigmoid(score_ik) + 0.05)$$
+$$
+\text{weight}_{ij} = \frac{\text{sigmoid}(\text{score}_{ij}) + 0.05}{\sum_{k} \left(\text{sigmoid}(\text{score}_{ik}) + 0.05\right)}
+$$
+
 The small additive floor guarantees every raw weight stays above a fixed positive value, which caps the maximum-to-minimum weight ratio at roughly 21, no matter how extreme the underlying similarity scores become. If attention concentration is part of what allows harmful feature interference to develop, capping that concentration should show up as measurably less interference between features that have nothing to do with each other (that is the hypothesis this kernel exists to test). Note this kernel is not translation-invariant like softmax, and it pulls toward globally uniform attention as scores go very negative so there are real differences from softmax beyond "boundedness" alone.
 
 ### 3. Squared-ReLU hard-sparse (contrast)
-$$weight_ij = relu(score_ij)^2 / Σ_k relu(score_ik)^2$$
+$$
+\text{weight}_{ij} = \frac{\text{relu}(\text{score}_{ij})^2}{\sum_{k} \text{relu}(\text{score}_{ik})^2}
+$$
+
 Unlike the smooth cap above, this gives any position with a negative similarity score exactly zero weight — a hard cutoff rather than an asymptotic approach to zero. This tests a fundamentally different, harder kind of constraint: if the bounded kernel's smooth cap helps, does an even more aggressive hard cutoff help more, or is it too aggressive and destroys useful weak signal? This is not the sparsemax operator, it's a simpler hard-sparse approximation. Because it behaves so differently from the other two (see Results), it is kept as a separate contrast condition, not folded into the formal statistical comparison between softmax and bounded.
 
 ## The Data
