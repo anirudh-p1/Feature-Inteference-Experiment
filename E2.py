@@ -1971,6 +1971,88 @@ def factorial_analysis(
 
 
 # ============================================================================
+# 19.5. Modification
+# ============================================================================
+
+SHARP_TEMPERATURE = 0.05  # lower = more forced concentration
+
+
+def run_sharpness_followup():
+
+    groups_A = {
+        "independent": list(range(N_FEATURES)),
+        "positive_pairs": [],
+        "exclusive_pairs": [],
+    }
+
+    groups_B = {
+        "independent": GROUP_INDEPENDENT,
+        "positive_pairs": GROUP_POSITIVE_PAIRS,
+        "exclusive_pairs": GROUP_EXCLUSIVE_PAIRS,
+    }
+
+    datasets = [
+        ("A_independent", generate_dataset_A, groups_A),
+        ("B_structured", generate_dataset_B, groups_B),
+    ]
+
+    results = []
+
+    print("=" * 80)
+    print("FOLLOW-UP: FORCED-CONCENTRATION SOFTMAX (tight bottleneck only)")
+    print("=" * 80)
+    print(f"\nsoftmax_temperature = {SHARP_TEMPERATURE} (lower = sharper)\n")
+
+    for dataset_name, generator, groups in datasets:
+        for seed in SEEDS:
+
+            X_train = generator(N_TRAIN, seed=seed * 100 + 1)
+            X_test = generator(N_TEST, seed=seed * 100 + 2)
+            X_probe_train = generator(N_PROBE_TRAIN, seed=seed * 100 + 3)
+            X_probe_eval = generator(N_PROBE_EVAL, seed=seed * 100 + 4)
+
+            for condition_name, kernel_name, temperature in [
+                ("sharp_softmax", "softmax", SHARP_TEMPERATURE),
+                ("bounded", "bounded", 1.0),  # temperature unused by bounded kernel
+            ]:
+
+                model = train_model(
+                    X_train=X_train,
+                    hidden_dim=8,          # tight only -- this is where compression pressure exists
+                    kernel=kernel_name,
+                    seed=seed,
+                    softmax_temperature=temperature,
+                )
+
+                reconstruction = evaluate_reconstruction(model, X_test)
+                ridge = ridge_interference(model, X_probe_train, groups)
+                intervention = intervention_interference(model, X_probe_train, groups)
+                mechanics = mechanistic_stats(model, X_test)
+
+                row = {
+                    "dataset": dataset_name,
+                    "condition": condition_name,
+                    "seed": seed,
+                    **reconstruction,
+                    **ridge,
+                    **intervention,
+                    **mechanics,
+                }
+                results.append(row)
+
+                print(f"[{dataset_name:14s} | {condition_name:13s} | seed={seed}] "
+                      f"BCE={row['recon_bce']:.4f} | "
+                      f"entropy={row['attention_entropy']:.4f} | "
+                      f"max_w={row['max_attention_weight']:.4f} | "
+                      f"ridge|cos|={row['ridge_independent_mean_abs_cos']:.4f}")
+
+    df = pd.DataFrame(results)
+    df.to_csv("results_sharpness_followup.csv", index=False)
+    print("\nSaved: results_sharpness_followup.csv")
+    return df
+
+
+# ============================================================================
 # 20. RUN EVERYTHING
 # ============================================================================
 
@@ -2025,6 +2107,8 @@ print()
 factorial_means = factorial_analysis(
     df_results
 )
+
+sharpness_df = run_sharpness_followup()
 
 # Save raw per-run data.
 df_results.to_csv(
