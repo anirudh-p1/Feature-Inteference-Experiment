@@ -75,17 +75,6 @@ The sparse kernel is run at both bottleneck widths too, but as a separate contra
 - **Random-direction null baseline** — 1,000 sets of 20 *completely random, model-unrelated* directions are generated at each bottleneck width, and the same interference metric is computed on them. This measures how much apparent "interference" exists purely from being in a low-dimensional space, independent of anything the network actually learned. Any measured interference at or below this level is not evidence of real entanglement.
 - **Mechanistic attention statistics** (entropy, max attention weight, effective support size, fraction of exact-zero weights) — measured directly rather than assumed from each kernel's formula, to confirm the kernels actually behave the way their equations suggest (e.g., is squared-ReLU actually sparse in practice, or not).
 
-## Results
-**1. Independent features: little real interference for softmax or bounded to reduce.** At the tight bottleneck, both softmax and bounded land at mean|cos| ≈ 0.25 on independent (Dataset A) features — *below* the random-null baseline of ≈0.29 at that same width. There was not much excess interference above chance for either kernel to act on in the first place. This is directly supported by the mechanistic statistics: softmax's own attention entropy sits close to the theoretical maximum (ln 20 ≈ 2.996) across most conditions, and its max attention weight stays small (~0.05–0.16) — it was never behaving in the sharp, winner-take-all way the original hypothesis assumed it might.
-
-**2. Squared-ReLU (hard-sparse) consistently underperforms, disconfirming the "harder cutoff helps more" hypothesis.** It shows higher independent-feature interference than the other two kernels (often at or above the random-null baseline), worse reconstruction loss, and — most notably — meaningfully worse exploitation of positive-correlated structure (~0.61–0.68 mean|cos| vs. ~0.68–0.85 for softmax/bounded). Forcing hard cutoffs cost real performance without buying any interference reduction.
-
-**3. Positive-correlated features show strong, clearly above-chance shared structure, across all three kernels.** Cosine similarities of ~0.68–0.85 sit far above the ~0.18–0.29 random-chance range measured at each bottleneck width — a clean confirmation that the network exploits genuine statistical structure between correlated features rather than merely suffering it as noise.
-
-**4. The kernel × bottleneck interaction is small, within the precision available.** The bounded-minus-softmax differences (e.g. −0.012 at tight/B_structured, +0.006 at wide/B_structured) are comparable in magnitude to the seed-to-seed standard deviations observed elsewhere in the data (~0.02–0.05). At 5 seeds, this is not distinguishable from noise — the honest claim is that kernel choice's effect on independent-feature interference did not detectably depend on bottleneck width at this sample size, not that no such dependence exists at all.
-
-**5. Exclusive (mutually-exclusive) pairs are the least conclusive group.** Their interference values are in a broadly similar range to positive pairs but with much wider run-to-run variability (partly because only 3 pairs contribute to each average). This is flagged as suggestive rather than conclusive, and as a natural target for more seeds or more pairs in future work.
-
 ## Reproducibility
 
 All randomness (data generation, model initialization, training) is explicitly seeded (`seeds = 0–4`). Re-running `experiment.py` reproduces identical results.
